@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tabla Productos</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      /* ----- Estilo limpio y simple ----- */
+      :root {
+        --bg: #f5f6f7;
+        --card: #ffffff;
+        --muted: #777;
+        --accent: #2b6cb0;
+        --danger: #d9534f;
+        font-family: Inter, system-ui, Arial, sans-serif;
+      }
+      body {
+        background: var(--bg);
+        margin: 20px;
+        color: #111;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      button {
+        background: var(--accent);
+        color: white;
+        border: 0;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(43, 108, 176, 0.12);
+      }
+      button.ghost {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid rgba(43, 108, 176, 0.12);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+        font-size: 13px;
+        vertical-align: middle;
+      }
+      th {
+        background: #fafafa;
+        text-align: left;
+        color: var(--muted);
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      input[type="text"],
+      select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        background: #fff;
+        font-size: 13px;
+      }
+      .small {
+        width: 110px;
+      }
+      .center {
+        text-align: center;
+      }
+      .readonly {
+        background: #f3f4f6;
+      }
+      .saved {
+        color: green;
+        font-weight: 600;
+      }
+      .footer-note {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Tabla de Productos</h1>
+      <div class="controls">
+        <button id="addRowBtn">Agregar fila</button>
+        <div style="margin-left: auto; color: var(--muted)">
+          Nota: <strong>Aquí</strong> se puede agreguar una nota
+        </div>
+      </div>
+
+      <div style="overflow: auto; max-height: 68vh">
+        <table id="productosTable">
+          <thead>
+            <tr>
+              <th>Cod_Prod</th>
+              <th>Descrip_Prod</th>
+              <th>StatusVenta_Prod</th>
+              <th>Tipo_Prod</th>
+              <th>ClaseCompra_Prod</th>
+              <th>Gama_Prod</th>
+              <th>Marca_Prod</th>
+              <th>Serie_Prod</th>
+              <th>Familia_Prod</th>
+              <th>Subfamilia1_Prod</th>
+              <th>Subfamilia2_Prod</th>
+              <th>Formato_Prod</th>
+              <th>Modelo_Prod</th>
+              <th class="center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyProducts">
+            <!-- Filas dinámicas -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="footer-note">
+        Nota: <strong>Aquí</strong> se puede agreguar una nota
+      </div>
+    </div>
+
+    <!-- ----- Firebase SDK (usa la versión web; reemplaza config más abajo) ----- -->
+    <!-- En producción revisa la doc oficial para la versión más reciente. -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+    <script>
+      /**********  CONFIGURA AQUÍ TU FIREBASE (REEMPLAZA CON TU PROPIO OBJETO)  **********
+       * Crea un proyecto en https://console.firebase.google.com/ -> Añadir app Web -> copia este config
+       * Docs: https://firebase.google.com/docs/web/setup
+       ******************************************************************************
+       */
+      const firebaseConfig = {
+        apiKey: "AIzaSyB4nQkOJ7z8YeHAaHHF9p-zonpeoWoM0CQ",
+        authDomain: "productos-db-47ff9.firebaseapp.com",
+        projectId: "productos-db-47ff9",
+        storageBucket: "productos-db-47ff9.firebasestorage.app",
+        messagingSenderId: "185301456179",
+        appId: "1:185301456179:web:caaf775b6bb5fbeae31a46",
+        measurementId: "G-BSQYLRFD8V",
+      };
+
+      // Inicializar Firebase
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      // Referencias usadas:
+      // - Contador: documento "products" dentro colección "counters" -> path: counters/products
+      // - Colección de productos: "products"
+
+      // ------------- Utilidades -------------
+      function pad7(n) {
+        return String(n).padStart(7, "0");
+      }
+
+      function crearFilaEnTabla(producto) {
+        // producto es objeto con las propiedades solicitadas
+        const tbody = document.getElementById("tbodyProducts");
+        const tr = document.createElement("tr");
+        tr.dataset.cod = producto.Cod_Prod;
+
+        tr.innerHTML = `
+      <td><span data-field="Cod_Prod" class="readonly small">${
+        producto.Cod_Prod
+      }</span></td>
+<td><span data-field="Descrip_Prod" class="readonly">${
+          producto.Descrip_Prod
+        }</span></td>
+
+
+      <td><select data-field="StatusVenta_Prod">
+        <option ${
+          producto.StatusVenta_Prod === "Activo" ? "selected" : ""
+        }>Activo</option>
+        <option ${
+          producto.StatusVenta_Prod === "ActivoFinExist" ? "selected" : ""
+        }>ActivoFinExist</option>
+        <option ${
+          producto.StatusVenta_Prod === "Obsoleto" ? "selected" : ""
+        }>Obsoleto</option>
+        <option ${
+          producto.StatusVenta_Prod === "Desarrollo" ? "selected" : ""
+        }>Desarrollo</option>
+        <option ${
+          producto.StatusVenta_Prod === "Promocion" ? "selected" : ""
+        }>Promocion</option>
+      </select></td>
+
+      <td><select data-field="Tipo_Prod">
+        <option ${
+          producto.Tipo_Prod === "ProductoVenta" ? "selected" : ""
+        }>ProductoVenta</option>
+        <option ${
+          producto.Tipo_Prod === "MateriaPrima" ? "selected" : ""
+        }>MateriaPrima</option>
+        <option ${
+          producto.Tipo_Prod === "Mercaderia" ? "selected" : ""
+        }>Mercaderia</option>
+        <option ${
+          producto.Tipo_Prod === "Merchandising" ? "selected" : ""
+        }>Merchandising</option>
+      </select></td>
+
+      <td><select data-field="ClaseCompra_Prod">
+        <option ${
+          producto.ClaseCompra_Prod === "Interno" ? "selected" : ""
+        }>Interno</option>
+        <option ${
+          producto.ClaseCompra_Prod === "Compra" ? "selected" : ""
+        }>Compra</option>
+        <option ${
+          producto.ClaseCompra_Prod === "CompraTemporal" ? "selected" : ""
+        }>CompraTemporal</option>
+      </select></td>
+
+      <td><select data-field="Gama_Prod"></select></td>
+
+      <td><input data-field="Marca_Prod" /></td>
+      <td><input data-field="Serie_Prod" /></td>
+
+      <td><input data-field="Familia_Prod" /></td>
+      <td><input data-field="Subfamilia1_Prod" /></td>
+      <td><input data-field="Subfamilia2_Prod" /></td>
+      <td><input data-field="Formato_Prod" /></td>
+      <td><input data-field="Modelo_Prod" /></td>
+
+      <td class="center">
+        <button class="deleteBtn" style="background:var(--danger)">Eliminar</button>
+      </td>
+    `;
+
+        // Insert values iniciales en inputs
+        const setInput = (selector, value) => {
+          const el = tr.querySelector(`[data-field="${selector}"]`);
+          if (el) {
+            if (el.tagName === "SELECT" || el.tagName === "INPUT")
+              el.value = value ?? "";
+          }
+        };
+
+        setInput("Gama_Prod", producto.Gama_Prod ?? "NULL");
+        setInput("Marca_Prod", producto.Marca_Prod ?? "");
+        setInput("Serie_Prod", producto.Serie_Prod ?? "");
+        setInput("Familia_Prod", producto.Familia_Prod ?? "");
+        setInput("Subfamilia1_Prod", producto.Subfamilia1_Prod ?? "");
+        setInput("Subfamilia2_Prod", producto.Subfamilia2_Prod ?? "");
+        setInput("Formato_Prod", producto.Formato_Prod ?? "");
+        setInput("Modelo_Prod", producto.Modelo_Prod ?? "");
+
+        // Lógica dependiente de Tipo_Prod
+        const tipoSelect = tr.querySelector('[data-field="Tipo_Prod"]');
+        const gamaSelect = tr.querySelector('[data-field="Gama_Prod"]');
+        const marcaInput = tr.querySelector('[data-field="Marca_Prod"]');
+        const serieInput = tr.querySelector('[data-field="Serie_Prod"]');
+
+        function actualizarGamaMarcaSerie() {
+          const tipo = tipoSelect.value;
+          // Gama: si MateriaPrima o Mercaderia -> NULL, sino dropdown Catalogo/Comercializadora/NULL
+          while (gamaSelect.firstChild)
+            gamaSelect.removeChild(gamaSelect.firstChild);
+          if (tipo === "MateriaPrima" || tipo === "Mercaderia") {
+            const opt = document.createElement("option");
+            opt.value = "NULL";
+            opt.textContent = "NULL";
+            gamaSelect.appendChild(opt);
+            marcaInput.value = "NULL";
+            marcaInput.readOnly = true;
+            serieInput.value = "NULL";
+            serieInput.readOnly = true;
+          } else {
+            ["Catalogo", "Comercializadora", "NULL"].forEach((o) => {
+              const opt = document.createElement("option");
+              opt.value = o;
+              opt.textContent = o;
+              if (o === (gamaSelect.dataset.original || "NULL"))
+                opt.selected = true;
+              gamaSelect.appendChild(opt);
+            });
+            marcaInput.readOnly = false;
+            if (!marcaInput.value.startsWith("Marca_"))
+              marcaInput.value = "Marca_";
+            serieInput.readOnly = false;
+            if (!serieInput.value.startsWith("Serie_"))
+              serieInput.value = "Serie_";
+          }
+        }
+
+        // guardar valor original de Gama si viene
+        gamaSelect.dataset.original = producto.Gama_Prod ?? "NULL";
+
+        // eventos
+        tipoSelect.addEventListener("change", actualizarGamaMarcaSerie);
+
+        // 🔹 Ejecutar una vez al crear la fila, así se rellena el dropdown inicial
+        actualizarGamaMarcaSerie();
+
+        // Guardado automático al cambiar un valor
+        tr.querySelectorAll("[data-field]").forEach((el) => {
+          el.addEventListener("change", async () => {
+            const doc = {};
+            tr.querySelectorAll("[data-field]").forEach((el2) => {
+              const key = el2.dataset.field;
+              doc[key] = el2.value === "" ? null : el2.value;
+            });
+            const cod = String(producto.Cod_Prod);
+            try {
+              await db
+                .collection("products")
+                .doc(cod)
+                .set(doc, { merge: true });
+              console.log(
+                "Guardado automático en Firestore (doc ID = " + cod + ")"
+              );
+            } catch (e) {
+              console.error("Error al guardar automáticamente:", e);
+            }
+          });
+        });
+
+        // Eliminar fila + doc en Firestore
+        tr.querySelector(".deleteBtn").addEventListener("click", async () => {
+          if (!confirm("Eliminar este producto y su documento en Firestore?"))
+            return;
+          const cod = String(producto.Cod_Prod);
+          try {
+            await db.collection("products").doc(cod).delete();
+            tr.remove();
+          } catch (e) {
+            console.error(e);
+            alert("Error al eliminar: " + e.message);
+          }
+        });
+
+        tbody.appendChild(tr);
+        return tr;
+      }
+
+      // ------------- CREAR NUEVO PRODUCTO: obtiene siguiente Cod_Prod seguro via transacción -------------
+      async function crearNuevoProductoEnFirestore() {
+        const counterRef = db.collection("counters").doc("products"); // doc que guarda el contador
+        try {
+          const newCod = await db.runTransaction(async (t) => {
+            const snap = await t.get(counterRef);
+            let last = 0;
+            if (!snap.exists) {
+              t.set(counterRef, { lastCod: 1 }); // crea inicial
+              last = 1;
+              return last;
+            } else {
+              const data = snap.data();
+              last = (data.lastCod || 0) + 1;
+              t.update(counterRef, { lastCod: last });
+              return last;
+            }
+          });
+
+          // Preparar objeto producto por defecto según reglas
+          const producto = {
+            Cod_Prod: newCod,
+            Descrip_Prod: "Producto_" + pad7(newCod),
+            StatusVenta_Prod: "Activo",
+            Tipo_Prod: "ProductoVenta",
+            ClaseCompra_Prod: "Interno",
+            // Gama, Marca, Serie etc se completan dependiendo Tipo
+            Gama_Prod: "Catalogo",
+            Marca_Prod: "Marca_000",
+            Serie_Prod: "Serie_0000",
+            Familia_Prod: "Familia_00",
+            Subfamilia1_Prod: "Subfamilia1_00",
+            Subfamilia2_Prod: "Subfamilia2_00",
+            Formato_Prod: "Formato_00",
+            Modelo_Prod: "Modelo_0000",
+          };
+
+          // Guardar producto en la colección 'products' usando el Cod_Prod como ID (string)
+          await db.collection("products").doc(String(newCod)).set(producto);
+        } catch (err) {
+          console.error("Error creando nuevo producto:", err);
+          alert("Error creando nuevo producto: " + (err.message || err));
+        }
+      }
+
+      // ------------- Escuchar productos en tiempo real -------------
+      function escucharProductos(limit = 50) {
+        const tbody = document.getElementById("tbodyProducts");
+        tbody.innerHTML = "";
+
+        db.collection("products")
+          .orderBy("Cod_Prod", "desc") // menor a mayor
+          .limit(limit)
+          .onSnapshot((snapshot) => {
+            tbody.innerHTML = ""; // limpia antes de redibujar
+            snapshot.forEach((doc) => {
+              crearFilaEnTabla(doc.data());
+            });
+          });
+      }
+
+      // ------------- Eventos UI -------------
+      document.getElementById("addRowBtn").addEventListener("click", () => {
+        // Crear nueva fila y guardarla inmediatamente en Firestore con Cod autoincremental
+        crearNuevoProductoEnFirestore();
+      });
+
+      // Escuchamos cambios en tiempo real
+      escucharProductos();
+    </script>
+  </body>
+</html>
