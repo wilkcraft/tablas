@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Redirigiendo…</title>
+
+  <!-- Fallback: meta refresh (0 segundos) -->
+  <meta http-equiv="refresh" content="0;url=tablaProductos.html">
+
+  <style>
+    /* Estilo simple mientras redirige (opcional) */
+    html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial}
+    .wrap{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:1rem}
+    .msg{font-size:1rem;color:#333}
+    .spinner{width:48px;height:48px;border:4px solid rgba(0,0,0,0.08);border-top-color:#333;border-radius:50%;animation:spin .9s linear infinite;margin:1rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    a{color:#0366d6;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="msg">Redirigiendo a <strong>tablaProductos.html</strong>…</div>
+    <div class="msg" style="margin-top:.5rem;font-size:.9rem">
+      Si no se redirige automáticamente, <a href="tablaProductos.html">haz clic aquí</a>.
+    </div>
+  </div>
+
+  <script>
+    // Redirección inmediata y que no deje rastro en el historial del navegador:
+    // location.replace() reemplaza la entrada actual del historial.
+    // Si necesitas permitir volver con "Atrás", usar location.href = 'tablaProductos.html';
+    try {
+      location.replace('tablaProductos.html');
+    } catch (e) {
+      // si por algún motivo falla, alternativamente:
+      window.location.href = 'tablaProductos.html';
+    }
+  </script>
+</body>
+</html>
